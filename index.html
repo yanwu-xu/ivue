@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,Chrome=1" />
+    <title>个人门户</title>
+</head>
+
+<body>
+    <div id="root">
+        <div class="name" title="title">
+            <div>
+                <div class="name3">1212121{{ name }}--{{ age }}</div>
+            </div>
+        </div>
+        <p>{{ name }}--{{ age }}</p>
+        <p>{{ name }}</p>
+        <p>{{ age }}</p>
+        <p>{{ message.info }}</p>
+    </div>
+</body>
+<script>
+    function getValueByPath(str, data) {
+        let arr = str.split('.')
+        let objValue = data[arr.shift()]
+        let result = objValue
+        while(objValue = objValue[arr.shift()]) {
+            result = objValue
+        }
+        return result
+    }
+
+    function getAST (node) {
+        let nodeType = node.nodeType
+        let _vnode = null
+        if (nodeType === 1) {
+            let nodeName = node.nodeName
+            let nodeAttrs = node.attributes
+            let attrObj = {}
+            for(let i = 0; i < nodeAttrs.length; i++) {
+                attrObj[nodeAttrs[i].nodeName] = nodeAttrs[i].nodeValue
+            }
+            _vnode = new VNode(nodeName, attrObj, undefined, nodeType)
+
+            for(let i = 0; i < node.childNodes.length; i++) {
+                let childVNode = getAST(node.childNodes[i])
+                _vnode.children.push(childVNode)
+            }
+        } else if (nodeType === 3) {
+            _vnode = new VNode(undefined, undefined, node.nodeValue, nodeType)
+        }
+        return _vnode
+    }
+
+    function getVNode (ast, data) {
+        let subAST = ast.children
+        if (ast.type === 3) {
+            let nodeValue = ast.value
+            let txt = nodeValue.replaceAll(/\{\{(.+?)\}\}/g, function (_, g) {
+                let key = g.trim()
+                let value = getValueByPath(key, data)
+                return value
+            })
+            ast.value = txt
+        }
+        if (subAST && subAST.length) {
+            for(let i = 0; i < subAST.length;  i++) {
+                getVNode(subAST[i], data)
+            }
+        }
+        return ast
+    }
+
+    function generateDom (vnode, data) {
+        let nodeType = vnode.type
+        let dom = null
+        if (nodeType === 1) {
+            dom = document.createElement(vnode.tag)
+            for(let key in vnode.data) {
+                dom.setAttribute(key, vnode.data[key])
+            }
+            for(let i = 0; i < vnode.children.length; i++) {
+                let childDom = generateDom(vnode.children[i], data)
+                dom.appendChild(childDom)
+            }
+        } else if (nodeType === 3) {
+            dom = document.createTextNode(vnode.value)
+        }
+        return dom
+    }
+
+    class VNode {
+        constructor(nodeName, nodeAttrs, nodeValue, nodeType) {
+            return {
+                tag: nodeName,
+                data: nodeAttrs,
+                value: nodeValue,
+                type: nodeType,
+                children: []
+            }
+        }
+    }
+    // tmp -> ast -> vnode -> dom
+    class iVue {
+        constructor(options) {
+            this.$el = options.el
+            this._data = options.data
+            this.$options = options
+            this.updated()
+        }
+
+        mount() {
+            this.render = () => {
+
+            }
+        }
+
+        getAST() {
+            let oldDom = document.querySelector(this.$el)
+            let cloneNode = oldDom.cloneNode(true)
+            let ast = getAST(cloneNode)
+            return ast
+        }
+
+        getVNode() {
+            let ast = this.getAST()
+            let vnode = getVNode(ast, this._data)
+            return vnode
+        }
+
+        updated() {
+            let oldDom = document.querySelector(this.$el)
+            let vnode = this.getVNode()
+            let newDom = generateDom(vnode, this._data)
+            oldDom.parentNode.replaceChild(newDom, oldDom)
+        }
+    }
+
+    let app = new iVue({
+        el: '#root',
+        data: {
+            name: 'aaa',
+            age: 12,
+            message: {
+                info: 'bbbbbb'
+            }
+        }
+    })
+</script>
+</html>
