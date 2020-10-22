@@ -12,25 +12,6 @@
     <div></div>
 </body>
 <script>
-    let o = {
-        a: 'a',
-        b: 'b',
-        c: {
-            d: 'd',
-            e: 'e'
-        },
-        f: [
-            {
-                a: '1',
-                b: '2'
-            },
-            {
-                a: '1',
-                b: '2'
-            }
-        ]
-    }
-
     let methods = ['push', 'pop']
 
     function extendMethods (arr) {
@@ -52,42 +33,45 @@
         arr.__proto__ = proto
     }
 
-    function obServe(obj, key, value) {
+    function obServe(obj, key, value, vm) {
         if (Array.isArray(value)) {
             extendMethods(value)
-        } else {
-            Object.defineProperty(obj, key, {
-                configurable: true,
-                get() {
-                    console.log('执行get');
-                    return value
-                },
-                set(newVal) {
-                    console.log('执行set');
-                    value = newVal
-                }
-            })
         }
+        Object.defineProperty(obj, key, {
+            configurable: true,
+            get() {
+                console.log('执行get');
+                return value
+            },
+            set(newVal) {
+                console.log('执行set');
+                console.log(22222222222222222222);
+                console.log(12121212, vm);
+                vm.mountComponent()
+                createActive(newVal, vm)
+                value = newVal
+            }
+        })
+        
         
     }
 
-    function createActive(obj) {
+    function createActive(obj, vm) {
         if (Array.isArray(obj)) {
             obj.forEach(item => {
-                createActive(item)
+                createActive(item, vm)
             })
         }
         if (typeof obj === 'object' && !Array.isArray(obj)) {
             Object.keys(obj).forEach(key => {
                 if (typeof obj[key] === 'object') {
-                    createActive(obj[key])
+                    createActive(obj[key], vm)
                 }
-                obServe(obj, key, obj[key])
+                obServe(obj, key, obj[key], vm)
             })
         }
         
     }
-    createActive(o)
 </script>
 
 </html>

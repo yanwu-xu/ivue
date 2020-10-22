@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width,initial-scale=1.0" />
     <meta http-equiv="X-UA-Compatible" content="IE=edge,Chrome=1" />
     <title>个人门户</title>
+    <script src="./Dep.js"></script>
+    <script src="./Watcher.js"></script>
+    <script src="./observe.js"></script>
 </head>
 
 <body>
@@ -53,26 +56,30 @@
         return _vnode
     }
 
-    function getVNode (ast, data) {
-        let subAST = ast.children
-        if (ast.type === 3) {
-            let nodeValue = ast.value
-            let txt = nodeValue.replaceAll(/\{\{(.+?)\}\}/g, function (_, g) {
+    function getVNode (node, data) {
+        let nodeType = node.type
+        let _vnode = null
+        if (nodeType === 1) {
+            let nodeName = node.tag
+            let nodeAttrs = node.data
+            _vnode = new VNode(nodeName, nodeAttrs, undefined, nodeType)
+
+            for(let i = 0; i < node.children.length; i++) {
+                let childVNode = getVNode(node.children[i], data)
+                _vnode.children.push(childVNode)
+            }
+        } else if (nodeType === 3) {
+            let txt = node.value.replaceAll(/\{\{(.+?)\}\}/g, function (_, g) {
                 let key = g.trim()
                 let value = getValueByPath(key, data)
                 return value
             })
-            ast.value = txt
+            _vnode = new VNode(undefined, undefined, txt, nodeType)
         }
-        if (subAST && subAST.length) {
-            for(let i = 0; i < subAST.length;  i++) {
-                getVNode(subAST[i], data)
-            }
-        }
-        return ast
+        return _vnode
     }
 
-    function generateDom (vnode, data) {
+    function generateDom (vnode) {
         let nodeType = vnode.type
         let dom = null
         if (nodeType === 1) {
@@ -81,7 +88,7 @@
                 dom.setAttribute(key, vnode.data[key])
             }
             for(let i = 0; i < vnode.children.length; i++) {
-                let childDom = generateDom(vnode.children[i], data)
+                let childDom = generateDom(vnode.children[i])
                 dom.appendChild(childDom)
             }
         } else if (nodeType === 3) {
@@ -107,12 +114,29 @@
             this.$el = options.el
             this._data = options.data
             this.$options = options
-            this.updated()
+            createActive(this._data, this)
+            this.mount()
         }
 
         mount() {
-            this.render = () => {
+            this.render = this.createRenderFn()
+            this.mountComponent()
+        }
 
+        mountComponent() {
+            let mount = () => {
+                this.updated( this.render() )
+            }
+            // 这个 Watcher 就是全局的 Watcher, 在任何一个位置都可以访问他了 ( 简化的写法 )
+            Dep.target = new Watcher( this, mount ); // 相当于这里调用了 mount
+        }
+
+        // h缓存抽象语法树
+        createRenderFn() {
+            let ast = this.getAST()
+            return () => {
+                let vnode = getVNode(ast, this._data)
+                return vnode
             }
         }
 
@@ -123,16 +147,9 @@
             return ast
         }
 
-        getVNode() {
-            let ast = this.getAST()
-            let vnode = getVNode(ast, this._data)
-            return vnode
-        }
-
-        updated() {
+        updated(vnode) {
             let oldDom = document.querySelector(this.$el)
-            let vnode = this.getVNode()
-            let newDom = generateDom(vnode, this._data)
+            let newDom = generateDom(vnode)
             oldDom.parentNode.replaceChild(newDom, oldDom)
         }
     }
