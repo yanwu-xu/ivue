@@ -30,6 +30,7 @@ function obServe(obj, key, value, vm) {
         configurable: true,
         get() {
             console.log('执行get');
+            dep.depend();
             return value
         },
         set(newVal) {

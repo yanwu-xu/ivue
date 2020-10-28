@@ -17,7 +17,9 @@ class Watcher {
 
     /** 计算, 触发 getter */
     get() {
+        pushTarget(this);
       this.getter.call( this.vm, this.vm ); // 上下文的问题就解决了
+        popTarget();
     }
 
     /**
@@ -37,5 +39,10 @@ class Watcher {
     /** 清空依赖队列 */
     cleanupDep() {
 
+    }
+
+    /** 将 当前的 dep 与 当前的 watcher 关联 */
+    addDep( dep ) {
+      this.deps.push( dep );
     }
 }
